@@ -1,80 +1,77 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace StringCalculatorLib
 {
     public static class StringCalculator
     {
-        public static int Add(string numbers)
+        public static string[] GenerateCustomDelimiters(string numbers)
         {
-            return string.IsNullOrEmpty(numbers) ? 0 : SumNumbers(GetValidNumbers(numbers));
-        }
-
-        private static IEnumerable<int> GetValidNumbers(string numbers)
-        {
-            string[] delimiters = GetDelimiters(ref numbers);
-
-            string delimiterPattern = string.Join("|", delimiters.Select(Regex.Escape));
-            string[] numberStrings = Regex.Split(numbers, delimiterPattern);
-
-            foreach (string numberString in numberStrings)
-            {
-                if (int.TryParse(numberString, out int number))
-                {
-                    if (number < 0)
-                    {
-                        throw new ArgumentException($"Negatives not allowed: {numberString}");
-                    }
-
-                    // Ignore numbers greater than 1000
-                    if (number <= 1000)
-                    {
-                        yield return number;
-                    }
-                }
-                else
-                {
-                    throw new ArgumentException($"Invalid input: {numberString}");
-                }
-            }
-        }
-
-        private static string[] GetDelimiters(ref string numbers)
-        {
+            string[] customDelimiters = null;
             if (numbers.StartsWith("//"))
             {
-                var delimiterMatch = Regex.Match(numbers, @"//(.+?)\n");
-                if (delimiterMatch.Success)
+                var customDelimiterMatch = Regex.Match(numbers, @"//(.+?)\n");
+                if (customDelimiterMatch.Success)
                 {
-                    numbers = numbers.Substring(delimiterMatch.Length);
-                    return delimiterMatch.Groups[1].Value.Split(new[] { "[", "]" }, StringSplitOptions.RemoveEmptyEntries);
+                    var customDelimiter = customDelimiterMatch.Groups[1].Value;
+                    customDelimiters = new[] { customDelimiter };
                 }
             }
-            return new[] { ",", "\n" };
+
+            return customDelimiters;
         }
 
-        private static int SumNumbers(IEnumerable<int> numbers)
+        public static List<int> GenerateNumbersArray(string numbers)
         {
-            List<int> negatives = new List<int>();
-            int sum = numbers.Aggregate(0, (acc, number) =>
-            {
-                if (number < 0)
-                {
-                    negatives.Add(number);
-                }
-                return acc + number;
-            });
+            
+            string[] delimiters = { ",", "\n" };
 
-            if (negatives.Any())
+            
+            string[] customDelimiters = GenerateCustomDelimiters(numbers);
+            if (customDelimiters != null)
             {
-                throw new ArgumentException($"Negatives not allowed: {string.Join(", ", negatives)}");
+                delimiters = customDelimiters;
+                numbers = numbers.Substring(numbers.IndexOf("\n") + 1);
             }
 
-            return sum;
+            List<int> numbersArray;
+            try
+            {
+                numbersArray = numbers.Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+                                          .Select(int.Parse)
+                                          .ToList();
+            }
+            catch
+            {
+                throw new ArgumentException("Invalid Input");
+            }
+
+            return numbersArray;
+        }
+
+        public static int Add(string numbers)
+        {
+            if (string.IsNullOrEmpty(numbers))
+                return 0;
+
+            List<int> numbersArray = GenerateNumbersArray(numbers);
+
+           
+            var negativeNumbers = numbersArray.Where(n => n < 0).ToList();
+            if (negativeNumbers.Any())
+            {
+                throw new ArgumentException($"Negatives not allowed: {string.Join(", ", negativeNumbers)}");
+            }
+
+            
+            numbersArray = numbersArray.Where(n => n <= 1000).ToList();
+
+            
+            return numbersArray.Sum();
         }
     }
 }
-
-
